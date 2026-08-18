@@ -15,14 +15,18 @@ import {
   Users,
   Layers,
   ChevronRight,
-  ShieldCheck
+  ShieldCheck,
+  CheckCircle2,
+  AlertTriangle,
+  Send,
+  X
 } from 'lucide-react';
-import { Course } from '../types';
+import { Course, CourseStatus } from '../types';
 
 export const AdminCoursesPage: React.FC = () => {
-  const { courses, updateCourse, deleteCourse, showToast } = useLms();
+  const { courses, approveCourse, rejectCourse, updateCourse, deleteCourse, showToast } = useLms();
   const [searchQuery, setSearchQuery] = useState('');
-  const [filterStatus, setFilterStatus] = useState<'ALL' | 'PUBLISHED' | 'DRAFT'>('ALL');
+  const [filterStatus, setFilterStatus] = useState<string>('ALL');
   const [filterCategory, setFilterCategory] = useState<string>('ALL');
 
   // Course inspection & rejection modal state
@@ -38,10 +42,14 @@ export const AdminCoursesPage: React.FC = () => {
       c.instructorName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       c.category.toLowerCase().includes(searchQuery.toLowerCase());
 
+    const cStatus = c.status || (c.published ? 'PUBLISHED' : 'DRAFT');
+
     const matchesStatus =
       filterStatus === 'ALL' ||
-      (filterStatus === 'PUBLISHED' && c.published) ||
-      (filterStatus === 'DRAFT' && !c.published);
+      (filterStatus === 'PUBLISHED' && (cStatus === 'PUBLISHED' || c.published)) ||
+      (filterStatus === 'PENDING_APPROVAL' && cStatus === 'PENDING_APPROVAL') ||
+      (filterStatus === 'REJECTED' && cStatus === 'REJECTED') ||
+      (filterStatus === 'DRAFT' && cStatus === 'DRAFT');
 
     const matchesCategory = filterCategory === 'ALL' || c.category === filterCategory;
 
@@ -49,8 +57,7 @@ export const AdminCoursesPage: React.FC = () => {
   });
 
   const handleApprove = (courseId: string) => {
-    updateCourse(courseId, { published: true });
-    showToast('Course approved and published to the public catalog!', 'success');
+    approveCourse(courseId);
     if (reviewingCourse?.id === courseId) {
       setReviewingCourse(null);
     }
@@ -59,11 +66,10 @@ export const AdminCoursesPage: React.FC = () => {
   const handleReject = () => {
     if (!reviewingCourse) return;
     if (!rejectionReason.trim()) {
-      showToast('Please provide a reason for course rejection.', 'error');
+      showToast('Please provide a reason for course revision request.', 'error');
       return;
     }
-    updateCourse(reviewingCourse.id, { published: false });
-    showToast(`Course rejected: "${rejectionReason}". Feedback sent to mentor.`, 'info');
+    rejectCourse(reviewingCourse.id, rejectionReason.trim());
     setShowRejectDialog(false);
     setRejectionReason('');
     setReviewingCourse(null);
@@ -72,6 +78,36 @@ export const AdminCoursesPage: React.FC = () => {
   const handleToggleFeatured = (course: Course) => {
     updateCourse(course.id, { featured: !course.featured });
     showToast(course.featured ? 'Removed from featured banner.' : 'Course marked as Featured!', 'success');
+  };
+
+  const getStatusPill = (c: Course) => {
+    const status = c.status || (c.published ? 'PUBLISHED' : 'DRAFT');
+    switch (status) {
+      case 'PUBLISHED':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-emerald-100 text-emerald-800">
+            <CheckCircle2 className="w-3 h-3" /> Live & Published
+          </span>
+        );
+      case 'PENDING_APPROVAL':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-amber-100 text-amber-800 animate-pulse">
+            <Clock className="w-3 h-3" /> Pending Admin Review
+          </span>
+        );
+      case 'REJECTED':
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-rose-100 text-rose-800">
+            <AlertTriangle className="w-3 h-3" /> Revision Requested
+          </span>
+        );
+      default:
+        return (
+          <span className="inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full bg-gray-100 text-gray-700">
+            Draft
+          </span>
+        );
+    }
   };
 
   return (
@@ -89,7 +125,7 @@ export const AdminCoursesPage: React.FC = () => {
 
         <div className="flex items-center gap-2">
           <span className="text-xs bg-[#8af5be]/40 text-[#005034] font-bold px-3 py-1.5 rounded-xl flex items-center gap-1.5">
-            <ShieldCheck className="w-4 h-4 text-[#006B47]" /> {courses.length} Accredited Curricula
+            <ShieldCheck className="w-4 h-4 text-[#006B47]" /> {courses.length} Total Curricula
           </span>
         </div>
       </div>
@@ -113,12 +149,14 @@ export const AdminCoursesPage: React.FC = () => {
             <span className="text-[11px] font-bold text-[#707972]">Status:</span>
             <select
               value={filterStatus}
-              onChange={(e) => setFilterStatus(e.target.value as any)}
+              onChange={(e) => setFilterStatus(e.target.value)}
               className="bg-transparent font-semibold text-xs text-[#191c1e] focus:outline-none cursor-pointer"
             >
               <option value="ALL">All Statuses</option>
-              <option value="PUBLISHED">Published & Live</option>
-              <option value="DRAFT">Pending / Draft</option>
+              <option value="PENDING_APPROVAL">Pending Review ({courses.filter((c) => c.status === 'PENDING_APPROVAL').length})</option>
+              <option value="PUBLISHED">Published & Live ({courses.filter((c) => c.status === 'PUBLISHED' || c.published).length})</option>
+              <option value="REJECTED">Needs Revision ({courses.filter((c) => c.status === 'REJECTED').length})</option>
+              <option value="DRAFT">Drafts ({courses.filter((c) => c.status === 'DRAFT' || (!c.status && !c.published)).length})</option>
             </select>
           </div>
 
@@ -201,16 +239,7 @@ export const AdminCoursesPage: React.FC = () => {
                   </td>
 
                   <td className="p-4">
-                    <span
-                      className={`inline-flex items-center gap-1 text-[10px] font-bold px-2.5 py-1 rounded-full ${
-                        c.published
-                          ? 'bg-[#8af5be]/50 text-[#00714b]'
-                          : 'bg-[#ffdad6] text-[#BA1A1A]'
-                      }`}
-                    >
-                      {c.published ? <CheckCircle className="w-3 h-3" /> : <Clock className="w-3 h-3" />}
-                      {c.published ? 'Approved & Live' : 'Under Review / Draft'}
-                    </span>
+                    {getStatusPill(c)}
                   </td>
 
                   <td className="p-4 text-right">
@@ -223,9 +252,27 @@ export const AdminCoursesPage: React.FC = () => {
                         <Eye className="w-3.5 h-3.5" /> Inspect
                       </button>
 
-                      {c.published ? (
+                      {c.status === 'PENDING_APPROVAL' ? (
+                        <>
+                          <button
+                            onClick={() => handleApprove(c.id)}
+                            className="px-2.5 py-1.5 bg-[#006B47] hover:bg-[#005034] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            Approve
+                          </button>
+                          <button
+                            onClick={() => {
+                              setReviewingCourse(c);
+                              setShowRejectDialog(true);
+                            }}
+                            className="px-2.5 py-1.5 bg-rose-100 hover:bg-rose-200 text-rose-800 rounded-lg text-xs font-bold transition-colors cursor-pointer"
+                          >
+                            Reject
+                          </button>
+                        </>
+                      ) : c.published ? (
                         <button
-                          onClick={() => updateCourse(c.id, { published: false })}
+                          onClick={() => updateCourse(c.id, { published: false, status: 'UNPUBLISHED' })}
                           className="px-2.5 py-1.5 bg-[#ffdad6]/40 hover:bg-[#ffdad6] text-[#BA1A1A] rounded-lg text-xs font-bold transition-colors cursor-pointer"
                         >
                           Unpublish
@@ -235,7 +282,7 @@ export const AdminCoursesPage: React.FC = () => {
                           onClick={() => handleApprove(c.id)}
                           className="px-2.5 py-1.5 bg-[#006B47] hover:bg-[#005034] text-white rounded-lg text-xs font-bold transition-colors cursor-pointer"
                         >
-                          Approve
+                          Publish
                         </button>
                       )}
 
@@ -272,7 +319,7 @@ export const AdminCoursesPage: React.FC = () => {
                   {reviewingCourse.title}
                 </h3>
                 <p className="text-xs text-[#707972] mt-0.5">
-                  Authored by <strong className="text-[#191c1e]">{reviewingCourse.instructorName}</strong> • {reviewingCourse.level}
+                  Authored by <strong className="text-[#191c1e]">{reviewingCourse.instructorName}</strong> • {reviewingCourse.level} • {reviewingCourse.batch || 'Batch B1'}
                 </p>
               </div>
               <button

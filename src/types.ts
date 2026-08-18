@@ -9,10 +9,18 @@ export interface User {
   title?: string;
   department?: string;
   bio?: string;
-  phone?: string;
   joinedDate: string;
-  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED' | 'PENDING';
-  emailVerified?: boolean;
+  status: 'ACTIVE' | 'INACTIVE' | 'SUSPENDED';
+}
+
+export type CourseStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'APPROVED' | 'PUBLISHED' | 'REJECTED' | 'UNPUBLISHED';
+
+export interface LessonResource {
+  name: string;
+  size: string;
+  url: string;
+  type?: 'pdf' | 'ppt' | 'zip' | 'doc' | 'code' | 'link';
+  uploadedAt?: string;
 }
 
 export interface Lesson {
@@ -23,7 +31,12 @@ export interface Lesson {
   videoUrl?: string;
   content?: string;
   completed?: boolean;
-  resources?: { name: string; size: string; url: string }[];
+  order?: number;
+  resources?: LessonResource[];
+  quizId?: string;
+  assignmentId?: string;
+  subtitlesUrl?: string;
+  notes?: string;
 }
 
 export interface Module {
@@ -31,10 +44,9 @@ export interface Module {
   title: string;
   description?: string;
   duration: string;
+  order?: number;
   lessons: Lesson[];
 }
-
-export type CourseStatus = 'DRAFT' | 'PENDING_APPROVAL' | 'PUBLISHED' | 'UNPUBLISHED' | 'REJECTED';
 
 export interface Course {
   id: string;
@@ -43,6 +55,7 @@ export interface Course {
   description: string;
   category: string;
   level: 'Beginner' | 'Intermediate' | 'Advanced' | 'All Levels';
+  language?: string;
   thumbnail: string;
   instructorId: string;
   instructorName: string;
@@ -55,35 +68,23 @@ export interface Course {
   syllabusCompletion?: number;
   price: number;
   originalPrice?: number;
+  isFree?: boolean;
   duration: string;
   totalLessons: number;
   published: boolean;
   status: CourseStatus;
-  adminFeedback?: string;
+  rejectionReason?: string;
+  submissionDate?: string;
+  approvalDate?: string;
   featured?: boolean;
+  certificateEligible?: boolean;
+  targetAudience?: string[];
+  skills?: string[];
   modules: Module[];
   requirements: string[];
   learningOutcomes: string[];
   createdAt: string;
   updatedAt: string;
-}
-
-export interface Enrollment {
-  id: string;
-  studentId: string;
-  studentName: string;
-  studentEmail: string;
-  studentAvatar: string;
-  courseId: string;
-  courseTitle: string;
-  instructorName: string;
-  enrolledAt: string;
-  status: 'ACTIVE' | 'COMPLETED' | 'CANCELLED';
-  progressPercentage: number;
-  completedLessonsCount: number;
-  totalLessonsCount: number;
-  lastAccessedLesson?: string;
-  lastAccessedAt?: string;
 }
 
 export interface QuizQuestion {
@@ -140,41 +141,21 @@ export interface Doubt {
   answeredAt?: string;
 }
 
-export type AssignmentStatus = 'NOT_STARTED' | 'IN_PROGRESS' | 'SUBMITTED' | 'UNDER_REVIEW' | 'GRADED' | 'LATE';
-
 export interface Assignment {
   id: string;
   courseId: string;
   courseTitle: string;
   batch: string;
   title: string;
-  instructions?: string;
-  deadline?: string;
   studentId: string;
   studentName: string;
   studentAvatar: string;
-  submittedAt?: string;
-  fileUrl?: string;
-  status: AssignmentStatus;
+  submittedAt: string;
+  fileUrl: string;
+  status: 'PENDING' | 'EVALUATED';
   score?: number;
   maxScore: number;
   feedback?: string;
-  resubmissionAllowed?: boolean;
-}
-
-export interface DirectMessage {
-  id: string;
-  senderId: string;
-  senderName: string;
-  senderAvatar: string;
-  senderRole: UserRole;
-  recipientId: string;
-  recipientName: string;
-  courseId?: string;
-  courseTitle?: string;
-  content: string;
-  timestamp: string;
-  read: boolean;
 }
 
 export interface LiveClass {
@@ -202,16 +183,13 @@ export interface Certificate {
   certificateNumber: string;
   grade: string;
   downloadUrl?: string;
-  status: 'VALID' | 'REVOKED';
 }
 
 export interface NotificationItem {
   id: string;
-  userId?: string;
   title: string;
   message: string;
   type: 'INFO' | 'SUCCESS' | 'WARNING' | 'ALERT';
-  category: 'ENROLLMENT' | 'ASSIGNMENT' | 'QUIZ' | 'MESSAGE' | 'ANNOUNCEMENT' | 'CERTIFICATE' | 'SYSTEM';
   read: boolean;
   timestamp: string;
   link?: string;
@@ -223,30 +201,25 @@ export interface Category {
   iconName: string;
   courseCount: number;
   description: string;
-  active: boolean;
 }
 
 export interface ActivityLog {
   id: string;
-  type: 'ASSIGNMENT' | 'DOUBT' | 'EVALUATION' | 'SYSTEM' | 'ENROLLMENT' | 'COURSE_APPROVAL' | 'USER_MGMT';
+  type: 'ASSIGNMENT' | 'DOUBT' | 'EVALUATION' | 'SYSTEM' | 'ENROLLMENT';
   actor: string;
   action: string;
   target: string;
   timestamp: string;
-  description?: string;
-  statusColor?: 'emerald' | 'amber' | 'gray' | 'red';
+  statusColor?: 'emerald' | 'amber' | 'gray';
 }
 
 export interface Announcement {
   id: string;
   title: string;
   content: string;
-  targetRole?: 'ALL' | 'STUDENT' | 'INSTRUCTOR';
-  targetBatch?: string;
-  courseTitle?: string;
+  targetBatch: string;
+  courseTitle: string;
   authorName: string;
-  authorRole: UserRole;
   createdAt: string;
-  priority: 'NORMAL' | 'HIGH' | 'URGENT';
+  priority: 'NORMAL' | 'HIGH';
 }
-

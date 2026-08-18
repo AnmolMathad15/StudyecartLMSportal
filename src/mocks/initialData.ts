@@ -109,6 +109,7 @@ export const INITIAL_COURSES: Course[] = [
     description: 'A comprehensive, industry-aligned pathway into data manipulation, exploratory analysis, hypothesis testing, and building supervised/unsupervised machine learning models.',
     category: 'Data Science & AI',
     level: 'Intermediate',
+    language: 'English',
     thumbnail: 'https://lh3.googleusercontent.com/aida-public/AB6AXuBqK_khl8tE99fyNVYeu1qNwEwdNoUwWNsUOW_FhEP0O3PsnmiQaqG3BfM67ikX_aQJppx9HvUE3FAAdb5hXIiBRsYVDVqRM9dWqpYXoQqxomWgL7HH0b39egnBjl0wU-qyGuA4m_RGYR3_EDvDZ5hHqXhCIn-my52ex5kHhVmn3Kz7KePQyHBEwL1Fh9YqVi56Agsgotn-gJZ31BC2WdHOPbg2zSykckheHNrb8VUVXV8hZiOkmCDSyA',
     instructorId: 'user-instructor-1',
     instructorName: 'Dr. Aris',
@@ -124,7 +125,11 @@ export const INITIAL_COURSES: Course[] = [
     duration: '18 Weeks',
     totalLessons: 42,
     published: true,
+    status: 'PUBLISHED',
     featured: true,
+    certificateEligible: true,
+    targetAudience: ['Data Analysts', 'Aspiring ML Engineers', 'Software Developers'],
+    skills: ['Python', 'Pandas', 'NumPy', 'Scikit-Learn', 'PyTorch', 'Model Evaluation'],
     requirements: [
       'Basic programming understanding in any high-level language',
       'Comfortable with high school algebra and functions',
@@ -296,7 +301,9 @@ export const INITIAL_COURSES: Course[] = [
     duration: '14 Weeks',
     totalLessons: 36,
     published: true,
+    status: 'PUBLISHED',
     featured: true,
+    certificateEligible: true,
     requirements: [
       'Single variable differential and integral calculus',
       'Basic matrix multiplication and linear systems'
@@ -407,7 +414,9 @@ export const INITIAL_COURSES: Course[] = [
     duration: '12 Weeks',
     totalLessons: 50,
     published: true,
+    status: 'PUBLISHED',
     featured: true,
+    certificateEligible: true,
     requirements: ['Any programming language basics (C++, Java, or Python)'],
     learningOutcomes: [
       'Analyze asymptotic time and space complexities (Big-O, Big-Omega)',
@@ -515,7 +524,9 @@ export const INITIAL_COURSES: Course[] = [
     duration: '16 Weeks',
     totalLessons: 48,
     published: true,
+    status: 'PUBLISHED',
     featured: false,
+    certificateEligible: true,
     requirements: ['Core Java OOP concepts', 'Basic HTML/CSS/JavaScript'],
     learningOutcomes: [
       'Design RESTful microservices with Spring Boot and Spring Data JPA',
@@ -572,6 +583,125 @@ export const INITIAL_COURSES: Course[] = [
             resources: [
               { name: 'jwt_security_filter.java', size: '22 KB', url: '#' }
             ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'course-distributed-sys',
+    title: 'Scalable Distributed Systems & High-Performance AI',
+    subtitle: 'Architect high-throughput, fault-tolerant distributed machine learning pipelines.',
+    description: 'In this comprehensive course, learners delve into the core mathematical principles, distributed storage architectures (Ceph, Lustre), MPI/NCCL interconnects, and cluster autoscaling that power modern foundation models.',
+    category: 'Cloud & DevOps',
+    level: 'Advanced',
+    language: 'English',
+    thumbnail: 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80',
+    instructorId: 'user-instructor-1',
+    instructorName: 'Dr. Aris',
+    instructorAvatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCuKqbaKs9X-HtOW2HGJ0LUGhRlYm63E8rQ5TUnnUA-0dJQr3vxuWN3lm-rSkBJSaymQcUgS9Qp5MJPNEyMf1IR4p-BsnXk4tp_xn1lntLl9CG4VeULtYf_LNPJPbdBpOubBiFJXbRUhFpxK6SR_AR1_0F5xGR01eMaoevcqZTMmkSZL6r5QQ8tWbHwLymjk0UtaRSeLn0dRic-IU7h_Szx7ul7kiXdm6J1meipGjm1fYzMJ5GUb2qbew',
+    instructorTitle: 'Senior Mentor',
+    batch: 'Batch B3',
+    rating: 0,
+    reviewCount: 0,
+    enrolledStudents: 0,
+    syllabusCompletion: 0,
+    price: 179,
+    originalPrice: 299,
+    duration: '10 Weeks',
+    totalLessons: 18,
+    published: false,
+    status: 'PENDING_APPROVAL',
+    submissionDate: '2024-10-24',
+    certificateEligible: true,
+    targetAudience: ['Cloud Architects', 'Backend Engineers', 'AI Infrastructure Teams'],
+    skills: ['Distributed Systems', 'NCCL', 'MPI', 'Kubernetes', 'Storage Fabrics'],
+    requirements: [
+      'Solid grasp of linear algebra, matrix rank, and eigenvalues',
+      'Comfortable with high-level Python and basic C++ systems programming'
+    ],
+    learningOutcomes: [
+      'Design and deploy multi-node distributed training pipelines',
+      'Benchmark network bandwidth bottlenecks using NCCL tests',
+      'Implement asynchronous parameter synchronization algorithms'
+    ],
+    createdAt: '2024-10-22',
+    updatedAt: '2024-10-24',
+    modules: [
+      {
+        id: 'dist-mod-1',
+        title: 'Module 1: Foundations of Distributed Data Parallelism',
+        description: 'Synchronous vs asynchronous gradient aggregation and ring-AllReduce topology.',
+        duration: '2h 15m',
+        lessons: [
+          {
+            id: 'dist-les-1-1',
+            title: '1.1 Gradient Aggregation & Mathematical Consistency',
+            duration: '35 mins',
+            type: 'video',
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+            content: 'Thorough mathematical breakdown of parameter updates across distributed nodes.',
+            completed: false,
+            resources: [{ name: 'gradient_derivation.pdf', size: '2.4 MB', url: '#' }]
+          },
+          {
+            id: 'dist-les-1-2',
+            title: '1.2 Ring-AllReduce vs Tree-AllReduce Benchmarks',
+            duration: '40 mins',
+            type: 'video',
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ElephantsDream.mp4',
+            content: 'Network bandwidth modeling and latency saturation.',
+            completed: false
+          }
+        ]
+      }
+    ]
+  },
+  {
+    id: 'course-cyber-sec-draft',
+    title: 'Advanced Applied Cryptography & Zero-Knowledge Proofs',
+    subtitle: 'Elliptic curve pairings, SNARKs/STARKs, and cryptographic protocols.',
+    description: 'A deep exploration of algebraic group theory, elliptic curves over finite fields, homomorphic encryption, and zero-knowledge cryptographic primitives.',
+    category: 'Cybersecurity & Networks',
+    level: 'Advanced',
+    language: 'English',
+    thumbnail: 'https://images.unsplash.com/photo-1526374965328-7f61d4dc18c5?w=800&auto=format&fit=crop&q=80',
+    instructorId: 'user-instructor-1',
+    instructorName: 'Dr. Aris',
+    instructorAvatar: 'https://lh3.googleusercontent.com/aida-public/AB6AXuCuKqbaKs9X-HtOW2HGJ0LUGhRlYm63E8rQ5TUnnUA-0dJQr3vxuWN3lm-rSkBJSaymQcUgS9Qp5MJPNEyMf1IR4p-BsnXk4tp_xn1lntLl9CG4VeULtYf_LNPJPbdBpOubBiFJXbRUhFpxK6SR_AR1_0F5xGR01eMaoevcqZTMmkSZL6r5QQ8tWbHwLymjk0UtaRSeLn0dRic-IU7h_Szx7ul7kiXdm6J1meipGjm1fYzMJ5GUb2qbew',
+    instructorTitle: 'Senior Mentor',
+    batch: 'Batch Z1',
+    rating: 0,
+    reviewCount: 0,
+    enrolledStudents: 0,
+    syllabusCompletion: 0,
+    price: 199,
+    duration: '8 Weeks',
+    totalLessons: 12,
+    published: false,
+    status: 'DRAFT',
+    certificateEligible: true,
+    requirements: ['Abstract Algebra & Modular Arithmetic', 'C/Rust basics'],
+    learningOutcomes: [
+      'Construct Pedersen commitments and Schnorr identification schemes',
+      'Formulate R1CS arithmetic circuits for zk-SNARK verifiers'
+    ],
+    createdAt: '2024-10-25',
+    updatedAt: '2024-10-25',
+    modules: [
+      {
+        id: 'zk-mod-1',
+        title: 'Module 1: Finite Fields & Elliptic Curves',
+        duration: '2 hours',
+        lessons: [
+          {
+            id: 'zk-les-1-1',
+            title: '1.1 Group Axioms and Weierstrass Normal Form',
+            duration: '40 mins',
+            type: 'video',
+            videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/ForBiggerJoyBlazes.mp4',
+            content: 'Algebraic equations and point doubling formulas.',
+            completed: false
           }
         ]
       }

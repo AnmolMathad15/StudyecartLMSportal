@@ -3,6 +3,9 @@ import {
   User,
   UserRole,
   Course,
+  Module,
+  Lesson,
+  CourseStatus,
   Quiz,
   QuizAttempt,
   Doubt,
@@ -42,13 +45,32 @@ interface LmsContextType {
   currentRoute: string;
   navigate: (route: string) => void;
   
-  // Course state
+  // Course state & lifecycle
   courses: Course[];
   enrolledCourseIds: string[];
   enrollInCourse: (courseId: string) => void;
+  createDraftCourse: (initialData?: Partial<Course>) => Course;
   addCourse: (courseData: Partial<Course>) => Course | null;
-  updateCourse: (courseId: string, updates: Partial<Course>) => void;
-  deleteCourse: (courseId: string) => void;
+  updateCourse: (courseId: string, updates: Partial<Course>) => boolean;
+  deleteCourse: (courseId: string) => { success: boolean; message: string };
+  submitCourseForApproval: (courseId: string) => { success: boolean; errors: string[] };
+  approveCourse: (courseId: string) => void;
+  rejectCourse: (courseId: string, reason: string) => void;
+  publishCourse: (courseId: string) => { success: boolean; message: string };
+  unpublishCourse: (courseId: string) => void;
+
+  // Module & Lesson granular CRUD
+  addCourseModule: (courseId: string, moduleData?: Partial<Module>) => Module | null;
+  updateCourseModule: (courseId: string, moduleId: string, updates: Partial<Module>) => void;
+  deleteCourseModule: (courseId: string, moduleId: string) => void;
+  reorderCourseModules: (courseId: string, reorderedModules: Module[]) => void;
+  addCourseLesson: (courseId: string, moduleId: string, lessonData?: Partial<Lesson>) => Lesson | null;
+  updateCourseLesson: (courseId: string, moduleId: string, lessonId: string, updates: Partial<Lesson>) => void;
+  deleteCourseLesson: (courseId: string, moduleId: string, lessonId: string) => void;
+  reorderCourseLessons: (courseId: string, moduleId: string, reorderedLessons: Lesson[]) => void;
+  addLessonResource: (courseId: string, moduleId: string, lessonId: string, resource: { name: string; size: string; url: string; type?: 'pdf' | 'ppt' | 'zip' | 'doc' | 'code' | 'link' }) => void;
+  deleteLessonResource: (courseId: string, moduleId: string, lessonId: string, resourceIndex: number) => void;
+
   toggleLessonCompletion: (courseId: string, moduleId: string, lessonId: string) => void;
   markLessonComplete: (courseId: string, lessonId: string, completed?: boolean) => void;
   
@@ -360,64 +382,471 @@ export const LmsProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   };
 
-  const addCourse = (courseData: Partial<Course>): Course | null => {
-    if (currentRole !== 'INSTRUCTOR' && currentRole !== 'ADMIN') {
-      showToast('Access denied. Only Mentors and Admins can create courses.', 'error');
-      return null;
-    }
-
+  // Course CRUD & Lifecycle
+  const createDraftCourse = (initialData?: Partial<Course>): Course => {
+    const newId = `course-${Date.now()}`;
     const newCourse: Course = {
-      id: `course-${Date.now()}`,
-      title: courseData.title || 'Untitled Course',
-      subtitle: courseData.subtitle || '',
-      description: courseData.description || '',
-      category: courseData.category || 'Data Science & AI',
-      level: courseData.level || 'Beginner',
-      thumbnail: courseData.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80',
+      id: newId,
+      title: initialData?.title || 'New Course Draft',
+      subtitle: initialData?.subtitle || 'Add a compelling one-line subtitle',
+      description: initialData?.description || 'Provide detailed learning syllabus overview, course roadmap, and target topics.',
+      category: initialData?.category || 'Data Science & AI',
+      level: initialData?.level || 'Beginner',
+      language: initialData?.language || 'English',
+      thumbnail: initialData?.thumbnail || 'https://images.unsplash.com/photo-1516321318423-f06f85e504b3?w=800&auto=format&fit=crop&q=80',
       instructorId: currentUser?.id || 'user-instructor-1',
       instructorName: currentUser?.name || 'Dr. Aris',
       instructorAvatar: currentUser?.avatar || 'https://lh3.googleusercontent.com/aida-public/AB6AXuCuKqbaKs9X-HtOW2HGJ0LUGhRlYm63E8rQ5TUnnUA-0dJQr3vxuWN3lm-rSkBJSaymQcUgS9Qp5MJPNEyMf1IR4p-BsnXk4tp_xn1lntLl9CG4VeULtYf_LNPJPbdBpOubBiFJXbRUhFpxK6SR_AR1_0F5xGR01eMaoevcqZTMmkSZL6r5QQ8tWbHwLymjk0UtaRSeLn0dRic-IU7h_Szx7ul7kiXdm6J1meipGjm1fYzMJ5GUb2qbew',
       instructorTitle: currentUser?.title || 'Senior Mentor',
-      batch: courseData.batch || 'Batch A1',
-      rating: 5.0,
+      batch: initialData?.batch || 'Batch B1',
+      rating: 0,
       reviewCount: 0,
       enrolledStudents: 0,
       syllabusCompletion: 0,
-      price: courseData.price ?? 99,
-      originalPrice: courseData.originalPrice ?? 199,
-      duration: courseData.duration || '8 Weeks',
-      totalLessons: courseData.modules ? courseData.modules.reduce((acc, m) => acc + m.lessons.length, 0) : 0,
-      published: true,
-      modules: courseData.modules || [],
-      requirements: courseData.requirements || ['Basic curiosity and dedication'],
-      learningOutcomes: courseData.learningOutcomes || ['Practical skill development'],
+      price: initialData?.price ?? 99,
+      originalPrice: initialData?.originalPrice ?? 199,
+      duration: initialData?.duration || '8 Weeks',
+      totalLessons: 1,
+      published: false,
+      status: 'DRAFT',
+      certificateEligible: true,
+      targetAudience: initialData?.targetAudience || ['Beginners', 'Career Switchers'],
+      skills: initialData?.skills || ['Fundamentals', 'Problem Solving'],
+      requirements: initialData?.requirements || ['Basic curiosity and dedication to learn'],
+      learningOutcomes: initialData?.learningOutcomes || ['Build foundational domain competencies', 'Apply practical workflows'],
       createdAt: new Date().toISOString().split('T')[0],
-      updatedAt: new Date().toISOString().split('T')[0]
+      updatedAt: new Date().toISOString().split('T')[0],
+      modules: initialData?.modules || [
+        {
+          id: `mod-${Date.now()}-1`,
+          title: 'Module 1: Getting Started & Course Introduction',
+          description: 'Overview of learning goals, tooling installation, and syllabus orientation.',
+          duration: '45 mins',
+          lessons: [
+            {
+              id: `les-${Date.now()}-1-1`,
+              title: '1.1 Course Orientation & Syllabus Roadmap',
+              duration: '15 mins',
+              type: 'video',
+              videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+              content: 'Welcome to the course! In this introductory lecture we outline the milestones ahead.',
+              completed: false
+            }
+          ]
+        }
+      ]
     };
 
     setCourses((prev) => [newCourse, ...prev]);
-    showToast(`Course "${newCourse.title}" published successfully!`);
+    showToast(`Draft course created: "${newCourse.title}"`, 'success');
     return newCourse;
   };
 
-  const updateCourse = (courseId: string, updates: Partial<Course>) => {
-    if (currentRole !== 'INSTRUCTOR' && currentRole !== 'ADMIN') {
-      showToast('Access denied. Only Mentors and Admins can modify courses.', 'error');
-      return;
-    }
-    setCourses((prev) =>
-      prev.map((c) => (c.id === courseId ? { ...c, ...updates, updatedAt: new Date().toISOString().split('T')[0] } : c))
-    );
-    showToast('Course updated successfully!');
+  const addCourse = (courseData: Partial<Course>): Course | null => {
+    return createDraftCourse(courseData);
   };
 
-  const deleteCourse = (courseId: string) => {
-    if (currentRole !== 'INSTRUCTOR' && currentRole !== 'ADMIN') {
-      showToast('Access denied. Only Mentors and Admins can delete courses.', 'error');
-      return;
+  const updateCourse = (courseId: string, updates: Partial<Course>): boolean => {
+    const existing = courses.find((c) => c.id === courseId);
+    if (!existing) {
+      showToast('Course not found.', 'error');
+      return false;
     }
+
+    // Backend ownership verification: Only the course instructor or an Admin can modify the course
+    if (currentRole !== 'ADMIN' && existing.instructorId !== currentUser?.id && currentUser?.role !== 'INSTRUCTOR') {
+      showToast('Unauthorized: You can only edit your own authored courses.', 'error');
+      return false;
+    }
+
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const totalLes = (updates.modules || c.modules).reduce((acc, m) => acc + (m.lessons?.length || 0), 0);
+        return {
+          ...c,
+          ...updates,
+          totalLessons: totalLes,
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+      })
+    );
+    showToast('Course saved successfully!', 'success');
+    return true;
+  };
+
+  const deleteCourse = (courseId: string): { success: boolean; message: string } => {
+    const existing = courses.find((c) => c.id === courseId);
+    if (!existing) {
+      return { success: false, message: 'Course not found.' };
+    }
+
+    // Backend ownership verification
+    if (currentRole !== 'ADMIN' && existing.instructorId !== currentUser?.id) {
+      showToast('Unauthorized: You can only delete your own courses.', 'error');
+      return { success: false, message: 'Unauthorized action.' };
+    }
+
+    // Guard: Prevent deletion if active students are enrolled
+    if (existing.enrolledStudents > 0) {
+      showToast(`Cannot delete course with ${existing.enrolledStudents} active enrolled students. Please unpublish or archive instead.`, 'error');
+      return { success: false, message: `Course has ${existing.enrolledStudents} active enrolled students. Deletion blocked.` };
+    }
+
     setCourses((prev) => prev.filter((c) => c.id !== courseId));
-    showToast('Course deleted.');
+    showToast(`Course "${existing.title}" deleted successfully.`, 'info');
+    return { success: true, message: 'Course deleted.' };
+  };
+
+  const submitCourseForApproval = (courseId: string): { success: boolean; errors: string[] } => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return { success: false, errors: ['Course not found in database.'] };
+
+    const errors: string[] = [];
+    if (!course.title || course.title.trim().length < 5) errors.push('Title must be at least 5 characters long.');
+    if (!course.description || course.description.trim().length < 20) errors.push('Course description must be at least 20 characters long.');
+    if (!course.thumbnail) errors.push('Course cover thumbnail image is required.');
+    if (!course.modules || course.modules.length === 0) errors.push('Course must contain at least 1 module.');
+    
+    course.modules.forEach((mod, modIdx) => {
+      if (!mod.lessons || mod.lessons.length === 0) {
+        errors.push(`Module ${modIdx + 1} ("${mod.title || 'Untitled'}") has no lessons.`);
+      } else {
+        mod.lessons.forEach((les, lesIdx) => {
+          if (les.type === 'video' && !les.videoUrl) {
+            errors.push(`Module ${modIdx + 1}, Lesson ${lesIdx + 1} ("${les.title}") is missing a video stream source.`);
+          }
+        });
+      }
+    });
+
+    if (errors.length > 0) {
+      showToast(`Submission blocked: ${errors.length} curriculum requirement(s) missing.`, 'error');
+      return { success: false, errors };
+    }
+
+    // Transition status to PENDING_APPROVAL
+    const nowStr = new Date().toISOString().split('T')[0];
+    setCourses((prev) =>
+      prev.map((c) =>
+        c.id === courseId
+          ? { ...c, status: 'PENDING_APPROVAL', published: false, submissionDate: nowStr, rejectionReason: undefined, updatedAt: nowStr }
+          : c
+      )
+    );
+
+    // Notify admins & mentors
+    const newNotif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: 'Course Submitted for Review',
+      message: `Course "${course.title}" was submitted by ${course.instructorName} for academic review.`,
+      type: 'INFO',
+      read: false,
+      timestamp: 'Just now',
+      link: '/admin/courses'
+    };
+    setNotifications((prev) => [newNotif, ...prev]);
+
+    // Log Activity
+    const newLog: ActivityLog = {
+      id: `act-${Date.now()}`,
+      type: 'SYSTEM',
+      actor: course.instructorName,
+      action: 'Submitted for Approval',
+      target: course.title,
+      timestamp: 'Just now',
+      statusColor: 'amber'
+    };
+    setActivityLogs((prev) => [newLog, ...prev]);
+
+    showToast(`Course "${course.title}" successfully submitted for Admin Review!`, 'success');
+    return { success: true, errors: [] };
+  };
+
+  const approveCourse = (courseId: string) => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+
+    const nowStr = new Date().toISOString().split('T')[0];
+    setCourses((prev) =>
+      prev.map((c) =>
+        c.id === courseId
+          ? { ...c, status: 'PUBLISHED', published: true, approvalDate: nowStr, rejectionReason: undefined, updatedAt: nowStr }
+          : c
+      )
+    );
+
+    // Send Mentor Notification
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: 'Course Approved & Published!',
+      message: `Congratulations! Your course "${course.title}" has been approved by the Admin and is now live in the catalog.`,
+      type: 'SUCCESS',
+      read: false,
+      timestamp: 'Just now',
+      link: `/courses/${courseId}`
+    };
+    setNotifications((prev) => [notif, ...prev]);
+
+    showToast(`Course "${course.title}" approved and published to the live catalog!`, 'success');
+  };
+
+  const rejectCourse = (courseId: string, reason: string) => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+
+    const nowStr = new Date().toISOString().split('T')[0];
+    setCourses((prev) =>
+      prev.map((c) =>
+        c.id === courseId
+          ? { ...c, status: 'REJECTED', published: false, rejectionReason: reason, updatedAt: nowStr }
+          : c
+      )
+    );
+
+    // Send Mentor Notification
+    const notif: NotificationItem = {
+      id: `notif-${Date.now()}`,
+      title: 'Course Revision Requested',
+      message: `Your course "${course.title}" was not approved. Feedback: "${reason}". Please revise and resubmit.`,
+      type: 'ALERT',
+      read: false,
+      timestamp: 'Just now',
+      link: `/instructor/courses/edit/${courseId}`
+    };
+    setNotifications((prev) => [notif, ...prev]);
+
+    showToast(`Course rejected. Feedback sent to mentor.`, 'info');
+  };
+
+  const publishCourse = (courseId: string): { success: boolean; message: string } => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return { success: false, message: 'Course not found.' };
+
+    const nowStr = new Date().toISOString().split('T')[0];
+    setCourses((prev) =>
+      prev.map((c) =>
+        c.id === courseId ? { ...c, status: 'PUBLISHED', published: true, updatedAt: nowStr } : c
+      )
+    );
+    showToast(`Course "${course.title}" published live to the catalog!`, 'success');
+    return { success: true, message: 'Course published.' };
+  };
+
+  const unpublishCourse = (courseId: string) => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return;
+
+    const nowStr = new Date().toISOString().split('T')[0];
+    setCourses((prev) =>
+      prev.map((c) =>
+        c.id === courseId ? { ...c, status: 'UNPUBLISHED', published: false, updatedAt: nowStr } : c
+      )
+    );
+    showToast(`Course "${course.title}" moved to unpublished/draft status.`, 'info');
+  };
+
+  // Granular Module CRUD
+  const addCourseModule = (courseId: string, moduleData?: Partial<Module>): Module | null => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return null;
+
+    const newModule: Module = {
+      id: `mod-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: moduleData?.title || `Module ${course.modules.length + 1}: New Topic Section`,
+      description: moduleData?.description || 'Detailed topic syllabus and learning milestones.',
+      duration: moduleData?.duration || '1h 30m',
+      lessons: moduleData?.lessons || [
+        {
+          id: `les-${Date.now()}-1`,
+          title: 'Lesson 1.1: Topic Overview & Foundations',
+          duration: '20 mins',
+          type: 'video',
+          videoUrl: 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+          content: 'Detailed lecture notes and breakdown.',
+          completed: false
+        }
+      ]
+    };
+
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = [...c.modules, newModule];
+        return {
+          ...c,
+          modules: updatedModules,
+          totalLessons: updatedModules.reduce((acc, m) => acc + m.lessons.length, 0),
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+      })
+    );
+    showToast(`Module "${newModule.title}" added to course!`, 'success');
+    return newModule;
+  };
+
+  const updateCourseModule = (courseId: string, moduleId: string, updates: Partial<Module>) => {
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = c.modules.map((m) => (m.id === moduleId ? { ...m, ...updates } : m));
+        return {
+          ...c,
+          modules: updatedModules,
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+      })
+    );
+  };
+
+  const deleteCourseModule = (courseId: string, moduleId: string) => {
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = c.modules.filter((m) => m.id !== moduleId);
+        return {
+          ...c,
+          modules: updatedModules,
+          totalLessons: updatedModules.reduce((acc, m) => acc + m.lessons.length, 0),
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+      })
+    );
+    showToast('Module removed from curriculum.', 'info');
+  };
+
+  const reorderCourseModules = (courseId: string, reorderedModules: Module[]) => {
+    setCourses((prev) =>
+      prev.map((c) => (c.id === courseId ? { ...c, modules: reorderedModules, updatedAt: new Date().toISOString().split('T')[0] } : c))
+    );
+  };
+
+  // Granular Lesson CRUD
+  const addCourseLesson = (courseId: string, moduleId: string, lessonData?: Partial<Lesson>): Lesson | null => {
+    const course = courses.find((c) => c.id === courseId);
+    if (!course) return null;
+
+    const newLesson: Lesson = {
+      id: `les-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      title: lessonData?.title || 'New Lecture Lesson',
+      duration: lessonData?.duration || '25 mins',
+      type: lessonData?.type || 'video',
+      videoUrl: lessonData?.videoUrl || 'https://commondatastorage.googleapis.com/gtv-videos-bucket/sample/BigBuckBunny.mp4',
+      content: lessonData?.content || 'Lecture materials, code examples, and theoretical foundations.',
+      completed: false,
+      resources: lessonData?.resources || []
+    };
+
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = c.modules.map((m) => {
+          if (m.id !== moduleId) return m;
+          return { ...m, lessons: [...m.lessons, newLesson] };
+        });
+        return {
+          ...c,
+          modules: updatedModules,
+          totalLessons: updatedModules.reduce((acc, m) => acc + m.lessons.length, 0),
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+      })
+    );
+    showToast(`Lesson "${newLesson.title}" added to module!`, 'success');
+    return newLesson;
+  };
+
+  const updateCourseLesson = (courseId: string, moduleId: string, lessonId: string, updates: Partial<Lesson>) => {
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = c.modules.map((m) => {
+          if (m.id !== moduleId) return m;
+          const updatedLessons = m.lessons.map((les) => (les.id === lessonId ? { ...les, ...updates } : les));
+          return { ...m, lessons: updatedLessons };
+        });
+        return {
+          ...c,
+          modules: updatedModules,
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+      })
+    );
+  };
+
+  const deleteCourseLesson = (courseId: string, moduleId: string, lessonId: string) => {
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = c.modules.map((m) => {
+          if (m.id !== moduleId) return m;
+          return { ...m, lessons: m.lessons.filter((l) => l.id !== lessonId) };
+        });
+        return {
+          ...c,
+          modules: updatedModules,
+          totalLessons: updatedModules.reduce((acc, m) => acc + m.lessons.length, 0),
+          updatedAt: new Date().toISOString().split('T')[0]
+        };
+      })
+    );
+    showToast('Lesson removed from module.', 'info');
+  };
+
+  const reorderCourseLessons = (courseId: string, moduleId: string, reorderedLessons: Lesson[]) => {
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = c.modules.map((m) => (m.id === moduleId ? { ...m, lessons: reorderedLessons } : m));
+        return { ...c, modules: updatedModules, updatedAt: new Date().toISOString().split('T')[0] };
+      })
+    );
+  };
+
+  const addLessonResource = (
+    courseId: string,
+    moduleId: string,
+    lessonId: string,
+    resource: { name: string; size: string; url: string; type?: 'pdf' | 'ppt' | 'zip' | 'doc' | 'code' | 'link' }
+  ) => {
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = c.modules.map((m) => {
+          if (m.id !== moduleId) return m;
+          const updatedLessons = m.lessons.map((l) => {
+            if (l.id !== lessonId) return l;
+            return {
+              ...l,
+              resources: [...(l.resources || []), { ...resource, uploadedAt: new Date().toISOString().split('T')[0] }]
+            };
+          });
+          return { ...m, lessons: updatedLessons };
+        });
+        return { ...c, modules: updatedModules };
+      })
+    );
+    showToast(`Resource "${resource.name}" attached to lesson!`, 'success');
+  };
+
+  const deleteLessonResource = (courseId: string, moduleId: string, lessonId: string, resourceIndex: number) => {
+    setCourses((prev) =>
+      prev.map((c) => {
+        if (c.id !== courseId) return c;
+        const updatedModules = c.modules.map((m) => {
+          if (m.id !== moduleId) return m;
+          const updatedLessons = m.lessons.map((l) => {
+            if (l.id !== lessonId) return l;
+            const newRes = [...(l.resources || [])];
+            newRes.splice(resourceIndex, 1);
+            return { ...l, resources: newRes };
+          });
+          return { ...m, lessons: updatedLessons };
+        });
+        return { ...c, modules: updatedModules };
+      })
+    );
+    showToast('Resource removed.', 'info');
   };
 
   const toggleLessonCompletion = (courseId: string, moduleId: string, lessonId: string) => {
