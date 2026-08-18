@@ -1,0 +1,6 @@
+{
+  "name": "StudyEcart LMS",
+  "description": "StudyEcart complete Learning Management System with Student, Instructor, and Admin portals, course builder, quizzes, certificates, and live classes.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
